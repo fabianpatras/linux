@@ -3,3 +3,6 @@ ccflags-y += -Wno-unused-function -Wno-unused-label -Wno-unused-variable
 obj-m += ./deferred_work/3-4-5-deferred/kernel/
 obj-m += ./deferred_work/6-kthread/
 obj-m += ./deferred_work/1-2-timer/
+obj-m += ./block_device_drivers/4-5-relay-disk/
+obj-m += ./block_device_drivers/1-2-3-6-ram-disk/kernel/
+obj-m += ./assignments/1-tracer/checker/_helper/
