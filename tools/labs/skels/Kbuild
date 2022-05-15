@@ -3,3 +3,7 @@ ccflags-y += -Wno-unused-function -Wno-unused-label -Wno-unused-variable
 obj-m += ./deferred_work/3-4-5-deferred/kernel/
 obj-m += ./deferred_work/6-kthread/
 obj-m += ./deferred_work/1-2-timer/
+obj-m += ./assignments/1-tracer/checker/_helper/
+obj-m += ./networking/3-4-tcp-sock/
+obj-m += ./networking/1-2-netfilter/kernel/
+obj-m += ./networking/5-udp-sock/
