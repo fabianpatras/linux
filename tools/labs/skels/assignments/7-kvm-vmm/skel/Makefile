@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Iinclude/
 run64: kvm-hello-world
 	./kvm-hello-world
 
-kvm-hello-world: vmm.o payload.o
+kvm-hello-world: vmm.o vm.o vcpu.o payload.o
 	$(CC) $^ -o $@
 
 payload.o: payload.ld guest64.img.o guest16.o

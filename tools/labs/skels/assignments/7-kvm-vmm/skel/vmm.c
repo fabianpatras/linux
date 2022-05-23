@@ -12,8 +12,6 @@
 #include "vm.h"
 #include "vcpu.h"
 
-#define UNUSED_PARAMETER(P)     ((void)(P))
-
 /* The linker scripts sets this values to the guest code. This is
    the code that we will write on the VM. Basically the .o files.
    Look into payload.ld to see how these are created.
@@ -29,30 +27,50 @@ int main(int argc, char **argv) {
 	struct kvm_regs regs;
 	uint64_t memval = 0;
 	size_t sz;
+	int api_ver;
+	int rc;
 
-	int kvm_fd = open("/dev/kvm", O_RDWR);
-	if (kvm_fd < 0) {
+	vm.sys_fd = open("/dev/kvm", O_RDWR);
+	if (vm.sys_fd < 0) {
 		perror("open /dev/kvm");
 		exit(1);
 	}
 
-	vm.sys_fd = kvm_fd;
-
-	int api_ver = ioctl(kvm_fd, KVM_GET_API_VERSION, 0);
-	if (api_ver < 0) {
+	api_ver = ioctl(vm.sys_fd, KVM_GET_API_VERSION, 0);
+	if (api_ver != KVM_API_VERSION) {
 		perror("KVM_GET_API_VERSION");
 		exit(1);
 	}
 
 	/* TODO: Initialize the VM. We will use 0x100000 bytes for the memory */
+	create_vm(&vm);
+
 	/* TODO: Initialize the VCPU */
+	create_vcpu(&vcpu, &vm);
+
 	/* TODO: Setup real mode. We will use guest_16_bits to test this. */
+	setup_real_mode(&vcpu);
+
+	memcpy(vm.mem, guest16, guest16_end - guest16);
+
+	// for (unsigned char *p = guest16, i = 1; p != guest16_end; p++, i++) {
+	// 	printf("0x%02x%s", *p, i % 4 == 0 ? "\n" : " ");
+	// }
+	// printf("\n");
+
 	/* TODO: IF real mode works all right. We can try to set up long mode */
 	for (;;) {
+		
 		/* TODO: Run the VCPU with KVM_RUN */
+		rc = ioctl(vcpu.fd, KVM_RUN, 0);
+		if (rc) {
+			perror("KVM_RUN");
+			exit(1);
+		}
+
 		/* TODO: Handle VMEXITs */
 		switch (vcpu.kvm_run->exit_reason) {
-		case KVM_EXIT_HLT: {goto check;}
+		case KVM_EXIT_HLT: { goto check; }
 		case KVM_EXIT_MMIO: {
 			/* TODO: Handle MMIO read/write. Data is available in the shared memory at 
 			vcpu->kvm_run */
@@ -79,10 +97,12 @@ int main(int argc, char **argv) {
 	if (regs.rax != 42) {
 		printf("Wrong result: {E,R,}AX is %lld\n", regs.rax);
 		return 0;
+	} else {
+		printf("Ok result: {E,R,}AX is %lld\n", regs.rax);
 	}
 
 	/* Verify that the guest has written 42 at 0x400 */
-	memcpy(&memval, &vm.mem[0x400], sz);
+	memcpy(&memval, &vm.mem[0x400], sizeof(char));
 	if (memval != 42) {
 		printf("Wrong result: memory at 0x400 is %lld\n",
 		       (unsigned long long)memval);

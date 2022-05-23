@@ -67,4 +67,7 @@ typedef struct vcpu {
 	struct kvm_run *kvm_run;
 } virtual_cpu;
 
+void create_vcpu(virtual_cpu *, virtual_machine *);
+void setup_real_mode(virtual_cpu *);
+
 #endif
