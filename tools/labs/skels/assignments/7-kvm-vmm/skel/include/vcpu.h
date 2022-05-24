@@ -69,5 +69,7 @@ typedef struct vcpu {
 
 void create_vcpu(virtual_cpu *, virtual_machine *);
 void setup_real_mode(virtual_cpu *);
+void setup_protected_mode(virtual_cpu *);
+void setup_2_lvl_paging(virtual_cpu *, virtual_machine *);
 
 #endif

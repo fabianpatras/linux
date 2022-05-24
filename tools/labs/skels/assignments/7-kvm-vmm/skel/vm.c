@@ -23,6 +23,12 @@ void create_vm(virtual_machine *vm) {
 		exit(1);
 	}
 
+	rc = madvise(vm->mem, VM_MEMORY_SIZE, MADV_MERGEABLE);
+	if (rc) {
+		perror("madvise VM mem");
+		exit(1);
+	}
+
 	struct kvm_userspace_memory_region mem = {
 		.slot = 0,
 		.guest_phys_addr = 0,

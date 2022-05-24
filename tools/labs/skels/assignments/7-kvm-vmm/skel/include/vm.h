@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 #define UNUSED_PARAMETER(P)     ((void)(P))
-#define VM_MEMORY_SIZE 0x100000 // 1MB
+#define VM_MEMORY_SIZE 0x200000 // 2MB -> exactly 1 x 2MB page (with PAE)
 
 typedef struct vm {
 	/* fd for interacting with the kvm itself e.g. for creating a VM */

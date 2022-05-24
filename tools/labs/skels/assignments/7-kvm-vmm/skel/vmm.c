@@ -49,10 +49,17 @@ int main(int argc, char **argv) {
 	create_vcpu(&vcpu, &vm);
 
 	/* TODO: Setup real mode. We will use guest_16_bits to test this. */
-	setup_real_mode(&vcpu);
+	// setup_real_mode(&vcpu);
+	setup_protected_mode(&vcpu);
+	setup_2_lvl_paging(&vcpu, &vm);
 
 	memcpy(vm.mem, guest16, guest16_end - guest16);
+	// memcpy(vm.mem, guest64, guest64_end - guest64);
 
+	// for (unsigned char *p = guest64, i = 1; p != guest64_end; p++, i++) {
+	// 	printf("0x%02x%s", *p, i % 4 == 0 ? "\n" : " ");
+	// }
+	// printf("\n");
 	// for (unsigned char *p = guest16, i = 1; p != guest16_end; p++, i++) {
 	// 	printf("0x%02x%s", *p, i % 4 == 0 ? "\n" : " ");
 	// }
@@ -71,6 +78,9 @@ int main(int argc, char **argv) {
 		/* TODO: Handle VMEXITs */
 		switch (vcpu.kvm_run->exit_reason) {
 		case KVM_EXIT_HLT: { goto check; }
+		case KVM_EXIT_FAIL_ENTRY: { 
+			printf("Exit qualification [0x%16x]", vcpu.kvm_run->fail_entry.hardware_entry_failure_reason);
+		}
 		case KVM_EXIT_MMIO: {
 			/* TODO: Handle MMIO read/write. Data is available in the shared memory at 
 			vcpu->kvm_run */

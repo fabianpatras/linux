@@ -4,10 +4,12 @@
 #include "device.h"
 
 // Phys addr memory layout:
-// Code: [0x1000, sizeof(code))
-// Heap: (Guest Memory): [0x010_000, xxx)
-// Stack: [xxx, 0x100_000) - grows down from 0x100_000
-// MMIO Devices: [0x100_000, 0x101_000)
+// Code: [0x1000, sizeof(code)) // 16 x 4KB page long
+// Heap: (Guest Memory): [0x01_0000, xxx) 				// |
+// Stack: [xxx, 0x10_0000) - grows down from 0x10_0000  // | both combined to 15 x 4KB page long
+// MMIO Devices: [0x10_0000, 0x10_1000) // 1 x 4KB page long
+
+// Paging structures: [0x10_1000, 0x10_2000) // 1 x 4KB page long
 static const uint64_t heap_phys_addr = 0x010000;
 static const uint64_t dev_mmio_start = 0x100000;
 simqueue_t g2h_queue;
