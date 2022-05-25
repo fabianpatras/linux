@@ -61,19 +61,22 @@ int main(int argc, char **argv) {
 	/* TODO: Setup real mode. We will use guest_16_bits to test this. */
 	// setup_real_mode(&vcpu);
 	setup_protected_mode(&vcpu);
-	setup_2_lvl_paging(&vcpu, &vm);
+
+	/* TODO: IF real mode works all right. We can try to set up long mode */
+	setup_long_mode(&vcpu);
+	// setup_2_lvl_paging(&vcpu, &vm);
+	setup_4_lvl_paging(&vcpu, &vm);
 
 	// memcpy(vm.mem, guest16, guest16_end - guest16);
 	// copy_to_vm_pa(&vm, guest16, guest16_end - guest16, code_gpa);
-	copy_to_vm_pa(&vm, guest32, guest32_end - guest32, code_gpa);
-	// copy_to_vm_pa(&vm, guest64, guest64_end - guest64, code_gpa);
+	// copy_to_vm_pa(&vm, guest32, guest32_end - guest32, code_gpa);
+	copy_to_vm_pa(&vm, guest64, guest64_end - guest64, code_gpa);
 	// copy_to_vm_pa(&vm, hlt_code, 1, code_gpa);
 
 	set_rip(&vcpu, code_gpa);
 
 	// print_code(guest32, guest32_end - guest32);
 
-	/* TODO: IF real mode works all right. We can try to set up long mode */
 	for (;;) {
 		
 		/* TODO: Run the VCPU with KVM_RUN */
@@ -90,6 +93,7 @@ int main(int argc, char **argv) {
 		case KVM_EXIT_HLT: { goto check; }
 		case KVM_EXIT_FAIL_ENTRY: { 
 			printf("Exit qualification [0x%8llx]", vcpu.kvm_run->fail_entry.hardware_entry_failure_reason);
+			break;
 		}
 		case KVM_EXIT_MMIO: {
 			/* TODO: Handle MMIO read/write. Data is available in the shared memory at 

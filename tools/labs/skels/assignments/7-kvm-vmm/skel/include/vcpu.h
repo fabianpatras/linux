@@ -68,10 +68,14 @@ typedef struct vcpu {
 } virtual_cpu;
 
 void create_vcpu(virtual_cpu *vcpu, virtual_machine *vm);
+
 void setup_real_mode(virtual_cpu *vcpu);
 void setup_protected_mode(virtual_cpu *vcpu);
-void msr_stuff(virtual_cpu *vcpu, virtual_machine *vm);
+void setup_long_mode(virtual_cpu *vcpu);
+
 void setup_2_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm);
+void setup_4_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm);
+
 void set_rip(virtual_cpu *vcpu, uint64_t rip);
 
 #endif

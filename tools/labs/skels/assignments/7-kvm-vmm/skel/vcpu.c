@@ -85,7 +85,6 @@ void setup_protected_mode(virtual_cpu *vcpu) {
 	struct kvm_sregs sregs;
 	struct kvm_regs regs;
 	int rc = 0;
-	int flags = 0;
 
 	struct kvm_segment seg = {
 		.base = 0,
@@ -151,64 +150,45 @@ void setup_protected_mode(virtual_cpu *vcpu) {
 	}
 }
 
-void msr_stuff(virtual_cpu *vcpu, virtual_machine *vm) {
-	int rc, i, j;
-	struct kvm_msr_list msr_list;
+// you need to call `setup_protected_mode` beforehand
+void setup_long_mode(virtual_cpu *vcpu) {
 	struct kvm_sregs sregs;
-	uint32_t indices[100];
-	uint32_t crX_fixedY[4] = { 0x486, 0x487, 0x488, 0x489};
+	int rc = 0;
 
-#define MSR_CR0_FIXED0 0x486
-#define MSR_CR0_FIXED1 0x487
-#define MSR_CR1_FIXED0 0x488
-#define MSR_CR1_FIXED1 0x489
+	struct kvm_segment seg = {
+		.base = 0,
+		.limit = 0xffffffff,
+		.selector = 1 << 3,
+		.present = 1,
+		.type = 11, /* Code: execute, read, accessed */
+		.dpl = 0,
+		.db = 0,
+		.s = 1, /* Code/data */
+		.l = 1,
+		.g = 1, /* 4KB granularity */
+	};
 
-	msr_list.nmsrs = 50;
-
-	// this struct won't be used outside the lifetime of this function
-	msr_list.nmsrs = indices;
-
-	printf("[msr_stuff]\n");
-
+	printf("[setup_long_mode]\n");
+	
 	rc = ioctl(vcpu->fd, KVM_GET_SREGS, &sregs);
 	if (rc < 0) {
 		perror("KVM_GET_SREGS");
 		exit(1);
 	}
 
-	rc = ioctl(vm->sys_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, &msr_list);
-	if (rc) {
-		perror("KVM_GET_MSR_FEATURE_INDEX_LIST");
+	sregs.cs = seg;
+
+	seg.type = 3;
+	seg.selector = 2 << 3;
+	sregs.ds = sregs.es = sregs.fs = sregs.gs = sregs.ss = seg;
+
+	sregs.efer = EFER_LME | EFER_LMA;
+	sregs.cr4 = CR4_PAE;
+
+	rc = ioctl(vcpu->fd, KVM_SET_SREGS, &sregs);
+	if (rc < 0) {
+		perror("KVM_SET_SREGS");
 		exit(1);
-	}
-
-	for (i = 0; i < msr_list.nmsrs; i++) {
-		printf("[0x%x]%s", msr_list.indices[i], i % 8 == 0 ? "\n" : " ");
-	}
-	printf("\n");
-
-	for (i = 0; i < 4; i++) {
-		for (j = 0; j < msr_list.nmsrs; j++) {
-			if (msr_list.indices[j] == crX_fixedY[i]) {
-				break;
-			}
-		}
-
-		if (j == msr_list.nmsrs) {
-			printf("MSR [0x%x] not found\n", crX_fixedY[i]);
-			// not found
-			continue;
-		}
-
-		switch (crX_fixedY[i])
-		{
-		case MSR_CR0_FIXED0:
-			printf("[MSR_CR0_FIXED0]");
-			break;
-		
-		default:
-			break;
-		}
 	}
 }
 
@@ -217,8 +197,7 @@ void setup_2_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm) {
 	int rc = 0;
 
 	// 257-th physical page (0x101 * 0x1000)
-	// literally the first page
-	uint64_t page_directory_pa =0x101000;
+	uint64_t page_directory_pa = 0x101000;
 
 	// points to GPA 0x0
 	uint64_t pde_4mb = PDE32_PRESENT
@@ -240,7 +219,64 @@ void setup_2_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm) {
 	// setting CR3 to GPA of the Page Directory
 	sregs.cr3 = page_directory_pa;
 
-	sregs.cr4 |= CR4_PSE;
+	// can't set this here because on the `KVM_SET_SREGS` ioctl in `long setup`
+	// the kvm verifies if the sregs are valid an because we set ther LME and LMA
+	// in efer we also need to have CR4 set properly.
+	// sregs.cr4 |= CR4_PSE;
+
+	rc = ioctl(vcpu->fd, KVM_SET_SREGS, &sregs);
+	if (rc < 0) {
+		perror("KVM_SET_SREGS");
+		exit(1);
+	}
+}
+
+void setup_4_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm) {
+	struct kvm_sregs sregs;
+	int rc = 0;
+
+	// 257-th physical page (0x101 * 0x1000)
+	uint64_t pml4_pa = 0x101000;
+	// 258-th physical page (0x102 * 0x1000)
+	uint64_t pdpt_pa = 0x102000;
+	// 259-th physical page (0x103 * 0x1000)
+	uint64_t page_directory_pa = 0x103000;
+
+	// points to GPA `pdpt_pa`
+	uint64_t pml4e = pdpt_pa
+			| PDE64_PRESENT
+			| PDE64_RW
+			| PDE64_USER;
+
+	// points to GPA `page_directory_pa`
+	uint64_t pdpte = page_directory_pa
+			| PDE64_PRESENT
+			| PDE64_RW
+			| PDE64_USER;
+
+	// points to GPA 0x0
+	uint64_t pde_2mb = PDE64_PRESENT
+			| PDE64_RW
+			| PDE64_USER
+			| PDE64_PS;
+
+	printf("[setup_4_lvl_paging]\n");
+
+	rc = ioctl(vcpu->fd, KVM_GET_SREGS, &sregs);
+	if (rc < 0) {
+		perror("KVM_GET_SREGS");
+		exit(1);
+	}
+
+	// writing the PDE that points to a 4MB page
+	((uint64_t *)(vm->mem + pml4_pa))[0] = pml4e;
+	((uint64_t *)(vm->mem + pdpt_pa))[0] = pdpte;
+	((uint64_t *)(vm->mem + page_directory_pa))[0] = pde_2mb;
+
+	// setting CR3 to GPA of the PML4
+	sregs.cr3 = pml4_pa;
+
+	sregs.cr4 = CR4_PAE;
 
 	rc = ioctl(vcpu->fd, KVM_SET_SREGS, &sregs);
 	if (rc < 0) {
