@@ -218,7 +218,7 @@ void setup_2_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm) {
 
 	// 257-th physical page (0x101 * 0x1000)
 	// literally the first page
-	uint64_t page_directory_pa = 0x0;
+	uint64_t page_directory_pa =0x101000;
 
 	// points to GPA 0x0
 	uint64_t pde_4mb = PDE32_PRESENT

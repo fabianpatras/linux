@@ -16,9 +16,18 @@
    Look into payload.ld to see how these are created.
 */
 extern const unsigned char guest16[], guest16_end[];
+extern const unsigned char guest32[], guest32_end[];
 extern const unsigned char guest64[], guest64_end[];
 
 const unsigned char hlt_code[] = { 0xf4 };
+
+void print_code(const unsigned char *code, uint64_t len) {
+	uint64_t i;
+	for (i = 0; i < len; i++) {
+		printf("0x%02x%s", code[i], i % 4 == 0 ? "\n" : " ");
+	}
+	printf("\n");
+}
 
 int main(int argc, char **argv) {
 	UNUSED_PARAMETER(argc);
@@ -29,6 +38,7 @@ int main(int argc, char **argv) {
 	uint64_t memval = 0;
 	int api_ver;
 	int rc;
+	uint64_t code_gpa = 0x1000;
 
 	vm.sys_fd = open("/dev/kvm", O_RDWR);
 	if (vm.sys_fd < 0) {
@@ -54,21 +64,14 @@ int main(int argc, char **argv) {
 	setup_2_lvl_paging(&vcpu, &vm);
 
 	// memcpy(vm.mem, guest16, guest16_end - guest16);
-	uint64_t code_gpa = 0x1000;
 	// copy_to_vm_pa(&vm, guest16, guest16_end - guest16, code_gpa);
-	copy_to_vm_pa(&vm, guest64, guest64_end - guest64, code_gpa);
+	copy_to_vm_pa(&vm, guest32, guest32_end - guest32, code_gpa);
+	// copy_to_vm_pa(&vm, guest64, guest64_end - guest64, code_gpa);
 	// copy_to_vm_pa(&vm, hlt_code, 1, code_gpa);
 
 	set_rip(&vcpu, code_gpa);
 
-	// for (unsigned char *p = guest64, i = 1; p != guest64_end; p++, i++) {
-	// 	printf("0x%02x%s", *p, i % 4 == 0 ? "\n" : " ");
-	// }
-	// printf("\n");
-	// for (unsigned char *p = guest16, i = 1; p != guest16_end; p++, i++) {
-	// 	printf("0x%02x%s", *p, i % 4 == 0 ? "\n" : " ");
-	// }
-	// printf("\n");
+	// print_code(guest32, guest32_end - guest32);
 
 	/* TODO: IF real mode works all right. We can try to set up long mode */
 	for (;;) {
@@ -79,6 +82,8 @@ int main(int argc, char **argv) {
 			perror("KVM_RUN");
 			exit(1);
 		}
+
+		printf("exit reason [%d]\n", vcpu.kvm_run->exit_reason);
 
 		/* TODO: Handle VMEXITs */
 		switch (vcpu.kvm_run->exit_reason) {
@@ -93,6 +98,9 @@ int main(int argc, char **argv) {
 		case KVM_EXIT_IO: {
 			/* TODO: Handle IO ports write (e.g. outb). Data is available in the shared memory
 			at vcpu->kvm_run. The data is at vcpu->kvm_run + vcpu->kvm_run->io.data_offset; */
+			printf("???\n");
+			putchar('a');
+			fflush(stdout);
 		}
 		}
 		fprintf(stderr,	"\nGot exit_reason %d,"
@@ -117,9 +125,9 @@ int main(int argc, char **argv) {
 	}
 
 	/* Verify that the guest has written 42 at 0x400 */
-	memcpy(&memval, &vm.mem[0x400], sizeof(char));
+	memcpy(&memval, &vm.mem[0x400], 4);
 	if (memval != 42) {
-		printf("Wrong result: memory at 0x400 is %lld\n",
+		printf("Wrong result: memory at 0x400 is 0x%llx\n",
 		       (unsigned long long)memval);
 		return 0;
 	}
