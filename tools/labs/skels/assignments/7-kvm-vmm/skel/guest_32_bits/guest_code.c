@@ -52,10 +52,13 @@ __attribute__((section(".start")))
 _start(void) {
 
     /* Our VM doesn't have malloc or anything, we simply use the memory */
-	char *p;
+	char p[] = "Hello, world!\n";
+	uint32_t len = sizeof(p) / sizeof(char);
+	uint8_t i = 0;
 
-	for (p = "Hello, world!\n"; *p; ++p)
-		outb(0xE9, *p);
+	for (i = 0; i < len; i++) {
+		outb(0xE9, p[i]);
+	}
 
 	*(long *) 0x400 = 42;
 

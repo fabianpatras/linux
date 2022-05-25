@@ -1,6 +1,6 @@
 CFLAGS = -Wall -Wextra -Iinclude/
 
-run64: kvm-hello-world
+run: kvm-hello-world
 	./kvm-hello-world
 
 kvm-hello-world: vmm.o vm.o vcpu.o payload.o

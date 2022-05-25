@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 			exit(1);
 		}
 
-		printf("exit reason [%d]\n", vcpu.kvm_run->exit_reason);
+		// printf("exit reason [%d]\n", vcpu.kvm_run->exit_reason);
 
 		/* TODO: Handle VMEXITs */
 		switch (vcpu.kvm_run->exit_reason) {
@@ -98,9 +98,19 @@ int main(int argc, char **argv) {
 		case KVM_EXIT_IO: {
 			/* TODO: Handle IO ports write (e.g. outb). Data is available in the shared memory
 			at vcpu->kvm_run. The data is at vcpu->kvm_run + vcpu->kvm_run->io.data_offset; */
-			printf("???\n");
-			putchar('a');
+			uint8_t chr = ((uint8_t *)vcpu.kvm_run + vcpu.kvm_run->io.data_offset)[0];
+			if (vcpu.kvm_run->io.direction == KVM_EXIT_IO_OUT) {
+				// printf("writing [%c] (size [%d] bytes) on port [%x]\n",
+				// 	// (uint8_t) is needed because pointer arithmetic would add sizeof (ptr type) multiples
+				// 	((uint8_t *)vcpu.kvm_run + vcpu.kvm_run->io.data_offset)[0],
+				// 	vcpu.kvm_run->io.size,
+				// 	vcpu.kvm_run->io.port);
+				putc(chr ,stdout);
+			}
 			fflush(stdout);
+
+			// don't exit(1)
+			continue;
 		}
 		}
 		fprintf(stderr,	"\nGot exit_reason %d,"
