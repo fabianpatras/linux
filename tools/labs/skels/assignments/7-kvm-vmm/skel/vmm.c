@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <string.h>
 #include <stdint.h>
 #include <linux/kvm.h>
 #include <stdlib.h>
@@ -19,6 +18,8 @@
 extern const unsigned char guest16[], guest16_end[];
 extern const unsigned char guest64[], guest64_end[];
 
+const unsigned char hlt_code[] = { 0xf4 };
+
 int main(int argc, char **argv) {
 	UNUSED_PARAMETER(argc);
 	UNUSED_PARAMETER(argv);
@@ -26,7 +27,6 @@ int main(int argc, char **argv) {
 	struct vcpu vcpu;
 	struct kvm_regs regs;
 	uint64_t memval = 0;
-	size_t sz;
 	int api_ver;
 	int rc;
 
@@ -53,8 +53,13 @@ int main(int argc, char **argv) {
 	setup_protected_mode(&vcpu);
 	setup_2_lvl_paging(&vcpu, &vm);
 
-	memcpy(vm.mem, guest16, guest16_end - guest16);
-	// memcpy(vm.mem, guest64, guest64_end - guest64);
+	// memcpy(vm.mem, guest16, guest16_end - guest16);
+	uint64_t code_gpa = 0x1000;
+	// copy_to_vm_pa(&vm, guest16, guest16_end - guest16, code_gpa);
+	copy_to_vm_pa(&vm, guest64, guest64_end - guest64, code_gpa);
+	// copy_to_vm_pa(&vm, hlt_code, 1, code_gpa);
+
+	set_rip(&vcpu, code_gpa);
 
 	// for (unsigned char *p = guest64, i = 1; p != guest64_end; p++, i++) {
 	// 	printf("0x%02x%s", *p, i % 4 == 0 ? "\n" : " ");
@@ -79,7 +84,7 @@ int main(int argc, char **argv) {
 		switch (vcpu.kvm_run->exit_reason) {
 		case KVM_EXIT_HLT: { goto check; }
 		case KVM_EXIT_FAIL_ENTRY: { 
-			printf("Exit qualification [0x%16x]", vcpu.kvm_run->fail_entry.hardware_entry_failure_reason);
+			printf("Exit qualification [0x%8llx]", vcpu.kvm_run->fail_entry.hardware_entry_failure_reason);
 		}
 		case KVM_EXIT_MMIO: {
 			/* TODO: Handle MMIO read/write. Data is available in the shared memory at 

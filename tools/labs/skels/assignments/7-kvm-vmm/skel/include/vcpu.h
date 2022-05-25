@@ -67,9 +67,11 @@ typedef struct vcpu {
 	struct kvm_run *kvm_run;
 } virtual_cpu;
 
-void create_vcpu(virtual_cpu *, virtual_machine *);
-void setup_real_mode(virtual_cpu *);
-void setup_protected_mode(virtual_cpu *);
-void setup_2_lvl_paging(virtual_cpu *, virtual_machine *);
+void create_vcpu(virtual_cpu *vcpu, virtual_machine *vm);
+void setup_real_mode(virtual_cpu *vcpu);
+void setup_protected_mode(virtual_cpu *vcpu);
+void msr_stuff(virtual_cpu *vcpu, virtual_machine *vm);
+void setup_2_lvl_paging(virtual_cpu *vcpu, virtual_machine *vm);
+void set_rip(virtual_cpu *vcpu, uint64_t rip);
 
 #endif

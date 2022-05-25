@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <linux/kvm.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define UNUSED_PARAMETER(P)     ((void)(P))
 #define VM_MEMORY_SIZE 0x200000 // 2MB -> exactly 1 x 2MB page (with PAE)
@@ -20,8 +21,12 @@ typedef struct vm {
 	int fd;
 	/* Memory of the VM */
 	char *mem;
+	/* Memory size */
+	uint64_t mem_size;
 } virtual_machine;
 
-void create_vm(virtual_machine *);
+void create_vm(virtual_machine *vm);
+void copy_to_vm_pa(virtual_machine *vm, const unsigned char *from,
+		   size_t len, size_t offset);
 
 #endif

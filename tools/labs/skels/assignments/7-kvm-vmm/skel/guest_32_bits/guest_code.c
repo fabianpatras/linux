@@ -6,7 +6,7 @@
 // Phys addr memory layout:
 // Code: [0x1000, sizeof(code)) // 16 x 4KB page long
 // Heap: (Guest Memory): [0x01_0000, xxx) 				// |
-// Stack: [xxx, 0x10_0000) - grows down from 0x10_0000  // | both combined to 15 x 4KB page long
+// Stack: [xxx, 0x10_0000) - grows down from 0x10_0000  // | both combined to 240 x 4KB page long
 // MMIO Devices: [0x10_0000, 0x10_1000) // 1 x 4KB page long
 
 // Paging structures: [0x10_1000, 0x10_2000) // 1 x 4KB page long

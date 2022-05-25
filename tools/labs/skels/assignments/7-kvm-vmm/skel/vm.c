@@ -3,6 +3,7 @@
 
 void create_vm(virtual_machine *vm) {
 	int rc = 0;
+	uint64_t map_addr = 0xffffc000;
 	printf("[create_vm]\n");
 
 	vm->fd = ioctl(vm->sys_fd, KVM_CREATE_VM, 0);
@@ -42,9 +43,26 @@ void create_vm(virtual_machine *vm) {
 		exit(1);
 	}
 
+	vm->mem_size = VM_MEMORY_SIZE;
+
 	rc = ioctl(vm->fd, KVM_SET_TSS_ADDR, 0xffffd000);
 	if (rc < 0) {
 		perror("KVM_SET_TSS_ADDR");
 		exit(1);
 	}
+
+	rc = ioctl(vm->fd, KVM_SET_IDENTITY_MAP_ADDR, &map_addr);
+	if (rc < 0) {
+		perror("KVM_SET_IDENTITY_MAP_ADDR");
+		exit(1);
+	}
+}
+
+void copy_to_vm_pa(virtual_machine *vm, const unsigned char *from,
+		   size_t len, size_t offset) {
+	if (offset + len > vm->mem_size) {
+		perror("copy_to_vm_pa not enough space");
+		exit(1);
+	}
+	memcpy(vm->mem + offset, from, len);
 }
