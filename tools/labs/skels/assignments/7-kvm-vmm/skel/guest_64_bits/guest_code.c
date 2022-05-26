@@ -70,6 +70,12 @@ _start(void) {
 	
 	/* Note: at heap_phys_addr+0xa is stored the device_table_t. We will use the address dev_mmio_start for the ring buffer queue. */
 
+	device_table_t *dev_table = (void *) heap_phys_addr + 0xa;
+	device_t *simvirt_dev = (void *) dev_table + sizeof(device_table_t);
+
+	dev_table->count = 1;
+	dev_table->device_addresses[0] = (uint64_t) simvirt_dev;
+
     /* TODO: Using the paravirtualized driver we have written for SIMVIRTIO, send
      "Ana are mere!\n" */
 	/* Note that you have to go through the device setup process: writing the magic number to 0xE9,
