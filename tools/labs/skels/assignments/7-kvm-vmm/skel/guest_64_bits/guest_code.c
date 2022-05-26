@@ -3,16 +3,21 @@
 #include "queue.h"
 #include "device.h"
 
+// GVA 4MB + 1 which is outside of our [0; 2MB) or [0; 4MB) Virtual Space
+#define MY_NULL_PTR (void *)(4 * 0x1000 * 0x1000 + 1)
+
+
 // Phys addr memory layout:
 // Code: [0x1000, sizeof(code)) // 16 x 4KB page long
 // Heap: (Guest Memory): [0x01_0000, xxx) 				// |
 // Stack: [xxx, 0x10_0000) - grows down from 0x10_0000  // | both combined to 240 x 4KB page long
 // MMIO Devices: [0x10_0000, 0x10_1000) // 1 x 4KB page long
 
-// Paging structures: [0x10_1000, 0x10_2000) // 1 x 4KB page long
+// Paging structures: [0x10_1000, 0x10_4000) // 3 x 4KB page long
 static const uint64_t heap_phys_addr = 0x010000;
 static const uint64_t dev_mmio_start = 0x100000;
 simqueue_t g2h_queue;
+
 
 /* Initializes a queue */
 void create_q(uint64_t data_offset, int size, queue_control_t *qc)
@@ -75,6 +80,8 @@ _start(void) {
 
 	dev_table->count = 1;
 	dev_table->device_addresses[0] = (uint64_t) simvirt_dev;
+
+	create_q(dev_mmio_start, 0, MY_NULL_PTR);
 
     /* TODO: Using the paravirtualized driver we have written for SIMVIRTIO, send
      "Ana are mere!\n" */

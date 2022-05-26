@@ -10,40 +10,13 @@
 // MMIO Devices: [0x10_0000, 0x10_1000) // 1 x 4KB page long
 
 // Paging structures: [0x10_1000, 0x10_2000) // 1 x 4KB page long
-static const uint64_t heap_phys_addr = 0x010000;
-static const uint64_t dev_mmio_start = 0x100000;
-simqueue_t g2h_queue;
 
-/* Initializes a queue */
-void create_q(uint64_t data_offset, int size, queue_control_t *qc)
-{
-    g2h_queue.maxlen = size;
-    g2h_queue.q_ctrl = qc;
-    g2h_queue.buffer = (void*)data_offset;
-}
+// deleted everything else -> this is 32 bit code
+// go to 64-bit code for the simvirt implementation
 
 /* Helper functions */
-static inline uint32_t inl(uint16_t port)
-{
-	uint32_t v;
-	asm volatile("inl %1,%0" : "=a" (v) : "dN" (port));
-	return v;
-}
-
-static inline void outl(uint16_t port, uint32_t v)
-{
-	asm volatile("outl %0,%1" : : "a" (v), "dN" (port));
-}
-
 static void outb(uint16_t port, uint8_t value) {
 	asm("outb %0,%1" : /* empty */ : "a" (value), "Nd" (port) : "memory");
-}
-
-static inline uint8_t inb(uint16_t port) {
-	uint8_t ret;
-
-	asm volatile("inb %1, %0": "=a"(ret): "Nd"(port) );
-	return ret;
 }
 
 void
