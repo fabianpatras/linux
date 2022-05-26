@@ -92,20 +92,27 @@ _start(void) {
 	// 255 elements long
 	create_q(&g2h_queue, dev_mmio_start, 512, qc);
 
-	int rc = circ_bbuf_push(&g2h_queue, (q_elem_t)'R');
+	int rc = 0;
+	
+	// ((device_t *)(dev_table->device_addresses[0]))->magic = MAGIC_VALUE;
 
-	if (rc) {
-		// *(char *) (dev_mmio_start) = &g2h_queue;
-		outb(0xE9, qc->head);
-		outb(0xE9, qc->tail);
-		outb(0xE9, g2h_queue.maxlen);
-	}
 
-    /* TODO: Using the paravirtualized driver we have written for SIMVIRTIO, send
-     "Ana are mere!\n" */
+	/* TODO: Using the paravirtualized driver we have written for SIMVIRTIO, send
+	   "Ana are mere!\n" */
 	/* Note that you have to go through the device setup process: writing the magic number to 0xE9,
 	   doing the DEVICE_RESET and DEVICE_CONFIG phases, sending the data to the device backend in the VMM
 	   using circ_bbuf_push and finally calling hlt */
+
+
+	outl(0xE9, MAGIC_VALUE);
+
+	char ana_are_mere[] = "Ana are mere!\n";
+	len = sizeof(ana_are_mere) / sizeof(char);
+
+	for (i = 0; i < len; i++) {
+		circ_bbuf_push(&g2h_queue, (q_elem_t) ana_are_mere[i]);
+	} 
+
 
 	for (;;)
 		asm("hlt" : /* empty */ : "a" (42) : "memory");

@@ -16,8 +16,6 @@ void create_vm(virtual_machine *vm) {
 	if (rc <= 0) {
 		perror("KVM_CHECK_EXTENSION");
 		exit(1);
-	} else {
-		printf("\t> We're allowed to [%d] memory slots\n", rc);
 	}
 
 	// guest RW physical address space
@@ -114,13 +112,13 @@ int probe_and_compare_guest_memory(virtual_machine *vm, uint64_t gpa,
 				   size_t data_size, uint64_t what) {
 	uint64_t memval = 0;
 
-	printf("[probe_and_compare_guest_memory]\n");
+	// printf("[probe_and_compare_guest_memory]\n");
 
 	if (gpa < vm->mem_size) {
-		printf("\t > Reading from RW memory reagion\n");
+		// printf("\t > Reading from RW memory reagion\n");
 		memcpy(&memval, &vm->mem[gpa], data_size);
 	} else if (gpa - vm->mem_size < vm->mmio_mem_size) {
-		printf("\t > Reading from MMIO memory reagion\n");
+		// printf("\t > Reading from MMIO memory reagion\n");
 		memcpy(&memval, &vm->mmio_mem[gpa - vm->mem_size], data_size);
 	} else {
 		printf("\t > Trying to read from outside of VM memory space\n");

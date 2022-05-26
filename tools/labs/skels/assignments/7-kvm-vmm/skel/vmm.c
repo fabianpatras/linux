@@ -10,6 +10,7 @@
 
 #include "vm.h"
 #include "vcpu.h"
+#include "device.h"
 
 /* The linker scripts sets this values to the guest code. This is
    the code that we will write on the VM. Basically the .o files.
@@ -31,15 +32,15 @@ void print_code(const unsigned char *code, uint64_t len) {
 	printf("\n");
 }
 
-int handle_mmio(virtual_cpu *vcpu, virtual_machine *vm) {
-	printf("[handle_mmio]\n");
+int handle_mmio(virtual_cpu *vcpu, virtual_machine *vm, device_t *simvirt_dev) {
+	// printf("[handle_mmio]\n");
 	uint64_t memval = 0;
 	uint64_t mmio_mem_offset;
 
-	printf("\t> %s len [%d] addr [0x%lx]\n",
-		vcpu->kvm_run->mmio.is_write ? "writing" : "reading",
-		vcpu->kvm_run->mmio.len,
-		vcpu->kvm_run->mmio.phys_addr);
+	// printf("\t> %s len [%d] addr [0x%lx]\n",
+	// 	vcpu->kvm_run->mmio.is_write ? "writing" : "reading",
+	// 	vcpu->kvm_run->mmio.len,
+	// 	vcpu->kvm_run->mmio.phys_addr);
 
 	if (vcpu->kvm_run->mmio.phys_addr < vm->mem_size) {
 		printf("\t> Wrong address??\n");
@@ -54,27 +55,45 @@ int handle_mmio(virtual_cpu *vcpu, virtual_machine *vm) {
 	}
 
 	memcpy(&memval, &vcpu->kvm_run->mmio.data, vcpu->kvm_run->mmio.len);
-	printf("offset [%d] char [%c] hex [0x%x]\n", mmio_mem_offset,
-		(char) memval, memval);
+	// printf("offset [%d] char [%c] hex [0x%x]\n", mmio_mem_offset,
+	// 	(char) memval, memval);
+
+	if (simvirt_dev->driver_status != DRIVER_OK) {
+		if ((char) memval == 'R') {
+			printf("Am primit 'R'\n");
+			simvirt_dev->device_status = DEVICE_RESET;
+		}
+	}
+
+	printf("%c", (char) memval);
 
 	return 0;
 }
 
-int handle_io(virtual_cpu *vcpu, virtual_machine *vm) {
+int handle_io(virtual_cpu *vcpu, virtual_machine *vm, device_t *simvirt_dev) {
 	UNUSED_PARAMETER(vm);
-	// printf("[handle_io]\n");
+	uint32_t memval = 0;
+	uint8_t chr = 0;
 
-	uint8_t chr = ((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0];
+	// printf("\t> writing [%c] [0x%x] (size [%d] bytes) on port [%x]\n",
+	// 	// (uint8_t) is needed because pointer arithmetic would add sizeof (ptr type) multiples
+	// 	((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0],
+	// 	((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0],
+	// 	vcpu->kvm_run->io.size,
+	// 	vcpu->kvm_run->io.port);
+
 	if (vcpu->kvm_run->io.direction == KVM_EXIT_IO_OUT) {
-		// printf("\t> writing [%c] [0x%x] (size [%d] bytes) on port [%x]\n",
-		// 	// (uint8_t) is needed because pointer arithmetic would add sizeof (ptr type) multiples
-		// 	((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0],
-		// 	((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0],
-		// 	vcpu->kvm_run->io.size,
-		// 	vcpu->kvm_run->io.port);
-		putc(chr ,stdout);
+		// outb/outl
+
+		if (vcpu->kvm_run->io.size != 4) {
+			chr = ((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0];
+			putc(chr ,stdout);
+			// printf("We need outl, not outb\n");
+			fflush(stdout);
+			return 0;
+		}
 	}
-	fflush(stdout);
+
 	return 0;
 }
 
@@ -87,6 +106,13 @@ int main(int argc, char **argv) {
 	int api_ver;
 	int rc;
 	uint64_t code_gpa = 0x1000;
+	uint64_t vm_exits = 0;
+	device_t simvirt_dev = {
+		.device_status = 0,
+		.driver_status = 0,
+		.magic = 0,
+		.max_queue_len = 0
+	};
 
 	vm.sys_fd = open("/dev/kvm", O_RDWR);
 	if (vm.sys_fd < 0) {
@@ -123,8 +149,6 @@ int main(int argc, char **argv) {
 
 	set_rip(&vcpu, code_gpa);
 
-	// print_code(guest32, guest32_end - guest32);
-
 	for (;;) {
 		
 		/* TODO: Run the VCPU with KVM_RUN */
@@ -133,12 +157,13 @@ int main(int argc, char **argv) {
 			perror("KVM_RUN");
 			exit(1);
 		}
-
-		// printf("exit reason [%d]\n", vcpu.kvm_run->exit_reason);
+		vm_exits++;
 
 		/* TODO: Handle VMEXITs */
 		switch (vcpu.kvm_run->exit_reason) {
-		case KVM_EXIT_HLT: { goto check; }
+		case KVM_EXIT_HLT: {
+			goto check; 
+		}
 		case KVM_EXIT_FAIL_ENTRY: { 
 			printf("Exit qualification [0x%8llx]", vcpu.kvm_run->fail_entry.hardware_entry_failure_reason);
 			break;
@@ -146,13 +171,13 @@ int main(int argc, char **argv) {
 		case KVM_EXIT_MMIO: {
 			/* TODO: Handle MMIO read/write. Data is available in the shared memory at 
 			vcpu->kvm_run */
-			handle_mmio(&vcpu, &vm);
+			handle_mmio(&vcpu, &vm, &simvirt_dev);
 			continue;
 		}
 		case KVM_EXIT_IO: {
 			/* TODO: Handle IO ports write (e.g. outb). Data is available in the shared memory
 			at vcpu->kvm_run. The data is at vcpu->kvm_run + vcpu->kvm_run->io.data_offset; */
-			handle_io(&vcpu, &vm);
+			handle_io(&vcpu, &vm, &simvirt_dev);
 			continue;
 		}
 		}
@@ -177,20 +202,10 @@ int main(int argc, char **argv) {
 		printf("Ok result: {E,R,}AX is %lld\n", regs.rax);
 	}
 
-	/* Verify that the guest has written 42 at 0x400 */
-	// memcpy(&memval, &vm.mem[0x400], 4);
-	// if (memval != 42) {
-	// 	printf("Wrong result: memory at 0x400 is 0x%llx\n",
-	// 	       (unsigned long long)memval);
-	// 	return 0;
-	// }
-
 	if (probe_and_compare_guest_memory(&vm, 0x400, 4, 42))
 		return 0;
 
-	// if (probe_and_compare_guest_memory(&vm, 0x180000, 1, (uint64_t) 'x'))
-	// 	return 0;
-
+	printf("There were a total of [%d] vm exits\n", vm_exits);
 	printf("%s\n", "Finished vmm");
 	return 0;
 }

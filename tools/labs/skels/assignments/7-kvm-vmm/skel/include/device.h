@@ -18,10 +18,10 @@
    for a device
 */
 typedef struct device {
-    uint32_t magic;
-    uint8_t device_status;
-    uint8_t driver_status;
-    uint8_t max_queue_len;
+	uint32_t magic;        // guest R;   vmm R/W
+	uint8_t device_status; // guest R,   vmm R/W
+	uint8_t driver_status; // guest R/W, vmm R
+	uint8_t max_queue_len; // guest R,   vmm R/W
 } device_t;
 
 
@@ -30,8 +30,8 @@ typedef struct device {
     In our case we will only have a SIMVIRT device
 */
 typedef struct device_table {
-    uint16_t count;
-    uint64_t device_addresses[10];
+	uint16_t count;
+	uint64_t device_addresses[10];
 } device_table_t;
 
 #endif
