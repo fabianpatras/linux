@@ -23,7 +23,8 @@ typedef struct simqueue {
 
 int circ_bbuf_push(simqueue_t *q, q_elem_t data)
 {
-    uint32_t next, head;
+    uint32_t next = 0;
+    uint32_t head = 0;
 
     head = q->q_ctrl->head; // do a single mmio read and cache the value.
 

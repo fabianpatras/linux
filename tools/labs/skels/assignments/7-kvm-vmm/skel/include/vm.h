@@ -17,7 +17,10 @@
 // [0; VM_MEMORY_SIZE) -- read write guest physical space
 //                   [VM_MEMORY_SIZE; VM_MEMORY_SIZE + VM_MMIO_SIZE) -- READ only MMIO
 
+#define VM_MEMORY_START 0x0
 #define VM_MEMORY_SIZE 0x180000 // 1,5MB -> first 3/4 of 1 x 2MB page (with PAE)
+
+#define VM_MMIO_START VM_MEMORY_SIZE 
 #define VM_MMIO_SIZE   0x080000 // 0,5MB -> last 1/4 of 1 x 2MB page (with PAE)
 
 typedef struct vm {
@@ -39,5 +42,7 @@ typedef struct vm {
 void create_vm(virtual_machine *vm);
 void copy_to_vm_pa(virtual_machine *vm, const unsigned char *from,
 		   size_t len, size_t offset);
+int probe_and_compare_guest_memory(virtual_machine *vm, uint64_t gpa,
+				   size_t data_size, uint64_t what);
 
 #endif

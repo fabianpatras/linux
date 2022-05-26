@@ -33,53 +33,48 @@ void print_code(const unsigned char *code, uint64_t len) {
 
 int handle_mmio(virtual_cpu *vcpu, virtual_machine *vm) {
 	printf("[handle_mmio]\n");
-	UNUSED_PARAMETER(vcpu);
-	UNUSED_PARAMETER(vm);
+	uint64_t memval = 0;
+	uint64_t mmio_mem_offset;
+
+	printf("\t> %s len [%d] addr [0x%lx]\n",
+		vcpu->kvm_run->mmio.is_write ? "writing" : "reading",
+		vcpu->kvm_run->mmio.len,
+		vcpu->kvm_run->mmio.phys_addr);
+
+	if (vcpu->kvm_run->mmio.phys_addr < vm->mem_size) {
+		printf("\t> Wrong address??\n");
+		exit(0);
+	}
+
+	mmio_mem_offset = vcpu->kvm_run->mmio.phys_addr - VM_MMIO_START;
+
+	if (mmio_mem_offset > vm->mmio_mem_size) {
+		printf("\t> Outside of MMIO region somehow\n");
+		exit(0);
+	}
+
+	memcpy(&memval, &vcpu->kvm_run->mmio.data, vcpu->kvm_run->mmio.len);
+	printf("offset [%d] char [%c] hex [0x%x]\n", mmio_mem_offset,
+		(char) memval, memval);
+
 	return 0;
 }
 
 int handle_io(virtual_cpu *vcpu, virtual_machine *vm) {
 	UNUSED_PARAMETER(vm);
 	// printf("[handle_io]\n");
-	
+
 	uint8_t chr = ((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0];
 	if (vcpu->kvm_run->io.direction == KVM_EXIT_IO_OUT) {
-		// printf("writing [%c] (size [%d] bytes) on port [%x]\n",
+		// printf("\t> writing [%c] [0x%x] (size [%d] bytes) on port [%x]\n",
 		// 	// (uint8_t) is needed because pointer arithmetic would add sizeof (ptr type) multiples
-		// 	((uint8_t *)vcpu.kvm_run + vcpu.kvm_run->io.data_offset)[0],
-		// 	vcpu.kvm_run->io.size,
-		// 	vcpu.kvm_run->io.port);
+		// 	((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0],
+		// 	((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0],
+		// 	vcpu->kvm_run->io.size,
+		// 	vcpu->kvm_run->io.port);
 		putc(chr ,stdout);
 	}
 	fflush(stdout);
-	return 0;
-}
-
-int probe_and_compare_guest_memory(virtual_machine *vm, uint64_t gpa,
-				   size_t data_size, uint64_t what) {
-	uint64_t memval = 0;
-
-	printf("[probe_and_compare_guest_memory]\n");
-
-	if (gpa < vm->mem_size) {
-		printf("\t > Reading from RW memory reagion\n");
-		memcpy(&memval, &vm->mem[gpa], data_size);
-	} else if (gpa - vm->mem_size < vm->mmio_mem_size) {
-		printf("\t > Reading from MMIO memory reagion\n");
-		memcpy(&memval, &vm->mmio_mem[gpa - vm->mem_size], data_size);
-	} else {
-		printf("\t > Trying to read from outside of VM memory space\n");
-		printf("\t > Eiting...\n");
-		exit(0);
-	}
-
-	if (memval != what) {
-		printf("Wrong result: memory at [0x%lx] is 0x%llx\n",
-			gpa,
-		       (unsigned long long)memval);
-		return 1;
-	}
-
 	return 0;
 }
 
@@ -193,8 +188,8 @@ int main(int argc, char **argv) {
 	if (probe_and_compare_guest_memory(&vm, 0x400, 4, 42))
 		return 0;
 
-	if (probe_and_compare_guest_memory(&vm, 0x180000, 1, (uint64_t) 'x'))
-		return 0;
+	// if (probe_and_compare_guest_memory(&vm, 0x180000, 1, (uint64_t) 'x'))
+	// 	return 0;
 
 	printf("%s\n", "Finished vmm");
 	return 0;

@@ -109,3 +109,31 @@ void copy_to_vm_pa(virtual_machine *vm, const unsigned char *from,
 	}
 	memcpy(vm->mem + offset, from, len);
 }
+
+int probe_and_compare_guest_memory(virtual_machine *vm, uint64_t gpa,
+				   size_t data_size, uint64_t what) {
+	uint64_t memval = 0;
+
+	printf("[probe_and_compare_guest_memory]\n");
+
+	if (gpa < vm->mem_size) {
+		printf("\t > Reading from RW memory reagion\n");
+		memcpy(&memval, &vm->mem[gpa], data_size);
+	} else if (gpa - vm->mem_size < vm->mmio_mem_size) {
+		printf("\t > Reading from MMIO memory reagion\n");
+		memcpy(&memval, &vm->mmio_mem[gpa - vm->mem_size], data_size);
+	} else {
+		printf("\t > Trying to read from outside of VM memory space\n");
+		printf("\t > Eiting...\n");
+		exit(0);
+	}
+
+	if (memval != what) {
+		printf("Wrong result: memory at [0x%lx] is 0x%llx\n",
+			gpa,
+		       (unsigned long long)memval);
+		return 1;
+	}
+
+	return 0;
+}

@@ -13,7 +13,6 @@
 // Stack: [xxx, 0x10_0000) - grows down from 0x10_0000  // | both combined to 240 x 4KB page long
 
 // Paging structures: [0x10_1000, 0x10_4000) // 3 x 4KB page long
-// Paging structures: [0x10_1000, 0x10_4000) // 3 x 4KB page long
 // MMIO Devices: [0x18_0000, 0x18_1000) // 1 x 4KB page long
 static const uint64_t heap_phys_addr = 0x010000;
 static const uint64_t dev_mmio_start = 0x180000;
@@ -21,11 +20,11 @@ simqueue_t g2h_queue;
 
 
 /* Initializes a queue */
-void create_q(uint64_t data_offset, int size, queue_control_t *qc)
+void create_q(simqueue_t *g2h_queue, uint64_t data_offset, int size, queue_control_t *qc)
 {
-	g2h_queue.maxlen = size;
-	g2h_queue.q_ctrl = qc;
-	g2h_queue.buffer = (void*)data_offset;
+	g2h_queue->maxlen = size;
+	g2h_queue->q_ctrl = qc;
+	g2h_queue->buffer = (q_elem_t *) data_offset;
 }
 
 /* Helper functions */
@@ -87,12 +86,20 @@ _start(void) {
 	dev_table->device_addresses[0] = (uint64_t) simvirt_dev;
 
 	// empty queue
-	qc->head = qc->tail = 0;
+	qc->head = 0;
+	qc->tail = 0;
 
 	// 255 elements long
-	create_q(dev_mmio_start, 0xff, qc);
+	create_q(&g2h_queue, dev_mmio_start, 512, qc);
 
-	*(char *) (dev_mmio_start) = 'x';
+	int rc = circ_bbuf_push(&g2h_queue, (q_elem_t)'R');
+
+	if (rc) {
+		// *(char *) (dev_mmio_start) = &g2h_queue;
+		outb(0xE9, qc->head);
+		outb(0xE9, qc->tail);
+		outb(0xE9, g2h_queue.maxlen);
+	}
 
     /* TODO: Using the paravirtualized driver we have written for SIMVIRTIO, send
      "Ana are mere!\n" */
