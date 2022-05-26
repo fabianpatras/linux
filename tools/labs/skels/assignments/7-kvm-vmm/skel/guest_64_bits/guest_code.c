@@ -91,8 +91,6 @@ _start(void) {
 
 	// 255 elements long
 	create_q(&g2h_queue, dev_mmio_start, 512, qc);
-
-	int rc = 0;
 	
 	// ((device_t *)(dev_table->device_addresses[0]))->magic = MAGIC_VALUE;
 

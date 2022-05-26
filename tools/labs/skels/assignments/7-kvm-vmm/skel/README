@@ -1,0 +1,44 @@
+// Anton-Fabian Patras
+// 344C3
+// mai 2022
+
+        Tema a fost grea.
+
+        Enunutul avea (foarte) multe informatii lipsa / eronate.
+
+        Ce am facut ca implementare a fost tot*. Am trecut prin real mode in
+protected mode fara paginare apoi cu 32-bit paginare apoi in long mode cu
+paginare pe 4 nivele cu pagini de 2MB. Foarte interesante chestiile astea, imi
+plac. Am reparat multe prin guest code, am creat si versiunea true de 32 bits ca
+sa pot rula "Hello, world!" in protected mode 32-bits. Pe partea de simvirt,
+m-am scarpinat foarte mult in cap incercand sa inteleg din enunt ce se vrea cu
+'tcp handshake'-like procedura de configurare initiala. Am mapat in VM 2 zone
+ca sa pot primi si VM Exituri cu KVM_EXIT_MMIO. In enunt nu spunea nimic de asa
+ceva. Pe partea de device/driver nu prea am inteles cu protocolul, cine unde
+scrie. La TLDR nu zicea nimic de MAGIC de exemplu. Am pus si "cod de profiling".
+
+        * tot ce am stiut/inteles din cauza enuntului
+
+        Ca si context, la licenta face ceva tot pe virtualizare deci pana la
+pana la partea cu SIMVIRT a fost ok-ish, dar si acolo am petrecut mult timp.
+Doar stiam unde sa ma uit in manualul intel and stuff.
+        
+        Mi-a placut extrem de tare pe partea de `guest_code` sa pot sa scriu
+in ce zona de memorie "vrea muschiul meu" si sa nu primesc SEGFAULT (la inceput
+primeam triple faulturi xd). Mi-a placut foarte mult ideea temei si introducerea
+unui mini virtio, DAR e foarte ne-explicata partea asta. Nu am facut nicaieri
+nici la curs nici la laborator chestii atat de in-depth ca sa avem macar cea mai
+vaga idee de unde sa o apucam.
+        
+        Trebuie facut enuntul in primul rand sa fie formatarea cum trebuie in
+pagina. Multe detalii adaugate despre virtio in sine si apoi despre cum
+functioneaza. Era un tabel undeva in care erau explicate niste campuri, dar nu
+zicea din perspectiva cui era (ca erau campuiri RO sau RW), erau 2 cozi in
+desen, dar in schelet in structura nu era niciun camp de coada.
+
+        Anyway, intentia a fost buna si o apreciez, am invatat de aici, dar
+executia mai trebuie finisata.
+
+        Tema o rulezi cu make si trebuie sa ruleze taskul final.
+
+        Daca ai intrebari cum am facut ceva sau de ce poti sa-mi pui daca vrei.

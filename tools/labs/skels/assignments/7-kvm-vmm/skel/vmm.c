@@ -72,7 +72,8 @@ int handle_mmio(virtual_cpu *vcpu, virtual_machine *vm, device_t *simvirt_dev) {
 
 int handle_io(virtual_cpu *vcpu, virtual_machine *vm, device_t *simvirt_dev) {
 	UNUSED_PARAMETER(vm);
-	uint32_t memval = 0;
+	UNUSED_PARAMETER(simvirt_dev);
+	// uint32_t memval = 0;
 	uint8_t chr = 0;
 
 	// printf("\t> writing [%c] [0x%x] (size [%d] bytes) on port [%x]\n",
@@ -205,7 +206,7 @@ int main(int argc, char **argv) {
 	if (probe_and_compare_guest_memory(&vm, 0x400, 4, 42))
 		return 0;
 
-	printf("There were a total of [%d] vm exits\n", vm_exits);
+	printf("There were a total of [%ld] vm exits\n", vm_exits);
 	printf("%s\n", "Finished vmm");
 	return 0;
 }
