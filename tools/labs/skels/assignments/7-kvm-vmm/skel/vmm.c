@@ -16,6 +16,8 @@
    Look into payload.ld to see how these are created.
 */
 extern const unsigned char guest16[], guest16_end[];
+
+// used for 32-bit protected mode
 extern const unsigned char guest32[], guest32_end[];
 extern const unsigned char guest64[], guest64_end[];
 
@@ -29,13 +31,64 @@ void print_code(const unsigned char *code, uint64_t len) {
 	printf("\n");
 }
 
+int handle_mmio(virtual_cpu *vcpu, virtual_machine *vm) {
+	printf("[handle_mmio]\n");
+	UNUSED_PARAMETER(vcpu);
+	UNUSED_PARAMETER(vm);
+	return 0;
+}
+
+int handle_io(virtual_cpu *vcpu, virtual_machine *vm) {
+	UNUSED_PARAMETER(vm);
+	// printf("[handle_io]\n");
+	
+	uint8_t chr = ((uint8_t *)vcpu->kvm_run + vcpu->kvm_run->io.data_offset)[0];
+	if (vcpu->kvm_run->io.direction == KVM_EXIT_IO_OUT) {
+		// printf("writing [%c] (size [%d] bytes) on port [%x]\n",
+		// 	// (uint8_t) is needed because pointer arithmetic would add sizeof (ptr type) multiples
+		// 	((uint8_t *)vcpu.kvm_run + vcpu.kvm_run->io.data_offset)[0],
+		// 	vcpu.kvm_run->io.size,
+		// 	vcpu.kvm_run->io.port);
+		putc(chr ,stdout);
+	}
+	fflush(stdout);
+	return 0;
+}
+
+int probe_and_compare_guest_memory(virtual_machine *vm, uint64_t gpa,
+				   size_t data_size, uint64_t what) {
+	uint64_t memval = 0;
+
+	printf("[probe_and_compare_guest_memory]\n");
+
+	if (gpa < vm->mem_size) {
+		printf("\t > Reading from RW memory reagion\n");
+		memcpy(&memval, &vm->mem[gpa], data_size);
+	} else if (gpa - vm->mem_size < vm->mmio_mem_size) {
+		printf("\t > Reading from MMIO memory reagion\n");
+		memcpy(&memval, &vm->mmio_mem[gpa - vm->mem_size], data_size);
+	} else {
+		printf("\t > Trying to read from outside of VM memory space\n");
+		printf("\t > Eiting...\n");
+		exit(0);
+	}
+
+	if (memval != what) {
+		printf("Wrong result: memory at [0x%lx] is 0x%llx\n",
+			gpa,
+		       (unsigned long long)memval);
+		return 1;
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	UNUSED_PARAMETER(argc);
 	UNUSED_PARAMETER(argv);
 	struct vm vm;
 	struct vcpu vcpu;
 	struct kvm_regs regs;
-	uint64_t memval = 0;
 	int api_ver;
 	int rc;
 	uint64_t code_gpa = 0x1000;
@@ -98,22 +151,13 @@ int main(int argc, char **argv) {
 		case KVM_EXIT_MMIO: {
 			/* TODO: Handle MMIO read/write. Data is available in the shared memory at 
 			vcpu->kvm_run */
+			handle_mmio(&vcpu, &vm);
+			continue;
 		}
 		case KVM_EXIT_IO: {
 			/* TODO: Handle IO ports write (e.g. outb). Data is available in the shared memory
 			at vcpu->kvm_run. The data is at vcpu->kvm_run + vcpu->kvm_run->io.data_offset; */
-			uint8_t chr = ((uint8_t *)vcpu.kvm_run + vcpu.kvm_run->io.data_offset)[0];
-			if (vcpu.kvm_run->io.direction == KVM_EXIT_IO_OUT) {
-				// printf("writing [%c] (size [%d] bytes) on port [%x]\n",
-				// 	// (uint8_t) is needed because pointer arithmetic would add sizeof (ptr type) multiples
-				// 	((uint8_t *)vcpu.kvm_run + vcpu.kvm_run->io.data_offset)[0],
-				// 	vcpu.kvm_run->io.size,
-				// 	vcpu.kvm_run->io.port);
-				putc(chr ,stdout);
-			}
-			fflush(stdout);
-
-			// don't exit(1)
+			handle_io(&vcpu, &vm);
 			continue;
 		}
 		}
@@ -139,13 +183,19 @@ int main(int argc, char **argv) {
 	}
 
 	/* Verify that the guest has written 42 at 0x400 */
-	memcpy(&memval, &vm.mem[0x400], 4);
-	if (memval != 42) {
-		printf("Wrong result: memory at 0x400 is 0x%llx\n",
-		       (unsigned long long)memval);
+	// memcpy(&memval, &vm.mem[0x400], 4);
+	// if (memval != 42) {
+	// 	printf("Wrong result: memory at 0x400 is 0x%llx\n",
+	// 	       (unsigned long long)memval);
+	// 	return 0;
+	// }
+
+	if (probe_and_compare_guest_memory(&vm, 0x400, 4, 42))
 		return 0;
-	}
+
+	if (probe_and_compare_guest_memory(&vm, 0x180000, 1, (uint64_t) 'x'))
+		return 0;
 
 	printf("%s\n", "Finished vmm");
 	return 0;
-} 
+}

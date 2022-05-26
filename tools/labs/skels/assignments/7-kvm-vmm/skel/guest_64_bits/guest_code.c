@@ -9,22 +9,23 @@
 
 // Phys addr memory layout:
 // Code: [0x1000, sizeof(code)) // 16 x 4KB page long
-// Heap: (Guest Memory): [0x01_0000, xxx) 				// |
+// Heap: (Guest Memory): [0x01_0000, xxx) 		// |
 // Stack: [xxx, 0x10_0000) - grows down from 0x10_0000  // | both combined to 240 x 4KB page long
-// MMIO Devices: [0x10_0000, 0x10_1000) // 1 x 4KB page long
 
 // Paging structures: [0x10_1000, 0x10_4000) // 3 x 4KB page long
+// Paging structures: [0x10_1000, 0x10_4000) // 3 x 4KB page long
+// MMIO Devices: [0x18_0000, 0x18_1000) // 1 x 4KB page long
 static const uint64_t heap_phys_addr = 0x010000;
-static const uint64_t dev_mmio_start = 0x100000;
+static const uint64_t dev_mmio_start = 0x180000;
 simqueue_t g2h_queue;
 
 
 /* Initializes a queue */
 void create_q(uint64_t data_offset, int size, queue_control_t *qc)
 {
-    g2h_queue.maxlen = size;
-    g2h_queue.q_ctrl = qc;
-    g2h_queue.buffer = (void*)data_offset;
+	g2h_queue.maxlen = size;
+	g2h_queue.q_ctrl = qc;
+	g2h_queue.buffer = (void*)data_offset;
 }
 
 /* Helper functions */
@@ -75,13 +76,23 @@ _start(void) {
 	
 	/* Note: at heap_phys_addr+0xa is stored the device_table_t. We will use the address dev_mmio_start for the ring buffer queue. */
 
+
+	// ~~~~~~~ HEAP `MALLOC` ~~~~~~~
 	device_table_t *dev_table = (void *) heap_phys_addr + 0xa;
 	device_t *simvirt_dev = (void *) dev_table + sizeof(device_table_t);
+	queue_control_t *qc = (void *) simvirt_dev + sizeof(device_t);
+	// ~~~~~~~~~~~~ HEAP ~~~~~~~~~~~
 
 	dev_table->count = 1;
 	dev_table->device_addresses[0] = (uint64_t) simvirt_dev;
 
-	create_q(dev_mmio_start, 0, MY_NULL_PTR);
+	// empty queue
+	qc->head = qc->tail = 0;
+
+	// 255 elements long
+	create_q(dev_mmio_start, 0xff, qc);
+
+	*(char *) (dev_mmio_start) = 'x';
 
     /* TODO: Using the paravirtualized driver we have written for SIMVIRTIO, send
      "Ana are mere!\n" */

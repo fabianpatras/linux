@@ -7,23 +7,23 @@ typedef uint8_t q_elem_t;
 
 typedef struct queue_control {
     // Ptr to current available head/producer index in 'buffer'.
-    unsigned head;
+    uint32_t head;
     // Ptr to last index in 'buffer' used by consumer.
-    unsigned tail;
+    uint32_t tail;
 } queue_control_t;
 
 typedef struct simqueue {
     // MMIO queue control.
     volatile queue_control_t *q_ctrl;
     // Size of the queue buffer/data.
-    unsigned maxlen;
+    uint32_t maxlen;
     // Queue data buffer.
     q_elem_t *buffer;
 } simqueue_t;
 
 int circ_bbuf_push(simqueue_t *q, q_elem_t data)
 {
-    unsigned next, head;
+    uint32_t next, head;
 
     head = q->q_ctrl->head; // do a single mmio read and cache the value.
 
@@ -41,7 +41,7 @@ int circ_bbuf_push(simqueue_t *q, q_elem_t data)
 
 int circ_bbuf_pop(simqueue_t *q, q_elem_t *data)
 {
-    unsigned next, tail;
+    uint32_t next, tail;
 
     tail = q->q_ctrl->tail;         // do a single mmio read and cache the value.
     if (q->q_ctrl->head == tail)    // if the head == tail, we don't have any data
